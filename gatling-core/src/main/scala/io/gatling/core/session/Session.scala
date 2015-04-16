@@ -15,6 +15,9 @@
  */
 package io.gatling.core.session
 
+import io.gatling.core.action.Action
+import io.gatling.core.action.interceptor.{DefaultActionInterceptor, ActionInterceptor}
+
 import scala.reflect.ClassTag
 
 import com.typesafe.scalalogging.LazyLogging
@@ -73,7 +76,11 @@ case class Session(
     drift: Long = 0L,
     baseStatus: Status = OK,
     blockStack: List[Block] = Nil,
-    userEnd: Session => Unit = session => ()) extends LazyLogging {
+    userEnd: Session => Unit = session => (),
+    actionInterceptorBuilder: Session => ActionInterceptor[Action] = session => new DefaultActionInterceptor(session)
+  ) extends LazyLogging {
+
+  def actionInterceptor = actionInterceptorBuilder(this)
 
   def apply(name: String) = SessionAttribute(this, name)
   def setAll(newAttributes: (String, Any)*): Session = setAll(newAttributes.toIterable)

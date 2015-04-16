@@ -52,6 +52,7 @@ class HttpRequestAction(httpRequestDef: HttpRequestDef, httpEngine: HttpEngine, 
     config.responseTransformer,
     config.discardResponseChunks,
     config.protocol.responsePart.inferHtmlResources)
+
   val requestName = httpRequestDef.requestName
 
   def sendRequest(requestName: String, session: Session): Validation[Unit] =
@@ -63,6 +64,9 @@ class HttpRequestAction(httpRequestDef: HttpRequestDef, httpEngine: HttpEngine, 
         responseBuilderFactory,
         next)
 
-      httpEngine.startHttpTransaction(tx)
+      session.actionInterceptor match {
+        case httpInterceptor: HttpRequestActionInterceptor => httpInterceptor.onSendHttpRequest(requestName, httpEngine, tx)
+        case _ => httpEngine.startHttpTransaction(tx)
+      }
     }
 }

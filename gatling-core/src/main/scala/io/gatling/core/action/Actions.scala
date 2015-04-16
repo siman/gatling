@@ -26,7 +26,9 @@ import io.gatling.core.session.Session
  */
 trait Action extends BaseActor {
 
-  def receive = { case session: Session => execute(session) }
+  def receive = { case session: Session =>
+    session.actionInterceptor.onReceiveSession(this)
+  }
 
   /**
    * Core method executed when the Action received a Session message

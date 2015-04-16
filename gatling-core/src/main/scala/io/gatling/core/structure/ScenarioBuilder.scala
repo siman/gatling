@@ -16,6 +16,8 @@
 package io.gatling.core.structure
 
 import akka.actor.{ ActorSystem, ActorRef }
+import io.gatling.core.action.Action
+import io.gatling.core.action.interceptor.{DefaultActionInterceptor, ActionInterceptor}
 import io.gatling.core.result.writer.DataWriters
 
 import scala.concurrent.duration.Duration
@@ -28,7 +30,7 @@ import io.gatling.core.controller.inject.{ InjectionProfile, InjectionStep }
 import io.gatling.core.controller.throttle.{ ThrottlingProfile, Throttling }
 import io.gatling.core.pause._
 import io.gatling.core.scenario.Scenario
-import io.gatling.core.session.Expression
+import io.gatling.core.session.{Session, Expression}
 
 /**
  * The scenario builder is used in the DSL to define the scenario
@@ -57,7 +59,9 @@ case class PopulationBuilder(
   defaultProtocols: Protocols,
   scenarioProtocols: Protocols = Protocols(),
   scenarioThrottling: Option[ThrottlingProfile] = None,
-  pauseType: Option[PauseType] = None)
+  pauseType: Option[PauseType] = None,
+  actionInterceptorBuilder: Option[Session => ActionInterceptor[Action]] = None
+  )
     extends LazyLogging {
 
   def protocols(protocols: Protocol*) = copy(scenarioProtocols = this.scenarioProtocols ++ protocols)
@@ -75,6 +79,8 @@ case class PopulationBuilder(
     val steps = throttlingBuilders.toList.map(_.steps).reverse.flatten
     copy(scenarioThrottling = Some(Throttling(steps).profile))
   }
+
+  def interceptWith(ai: Session => ActionInterceptor[Action]) = copy(actionInterceptorBuilder = Some(ai))
 
   /**
    * @param system the actor system
@@ -97,8 +103,10 @@ case class PopulationBuilder(
 
     val ctx = ScenarioContext(controller, dataWriters, userEnd, protocols, resolvedPauseType, globalThrottling.isDefined || scenarioThrottling.isDefined)
 
+    val interceptor = actionInterceptorBuilder.getOrElse(s => new DefaultActionInterceptor(s))
+
     val entryPoint = scenarioBuilder.build(system, userEnd, ctx)
-    new Scenario(scenarioBuilder.name, entryPoint, injectionProfile, ctx)
+    new Scenario(scenarioBuilder.name, entryPoint, injectionProfile, ctx, interceptor)
   }
 }
 
